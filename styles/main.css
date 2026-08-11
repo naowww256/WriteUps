@@ -138,3 +138,35 @@ footer {
     opacity: 0.8;
     margin-top: 5px;
 }
+
+/* Writeups individuales */
+.writeup {
+    background: #1a1a1a;
+    padding: 30px;
+    border-radius: 5px;
+    border: 1px solid #222;
+}
+
+.writeup h1 {
+    margin-top: 0;
+}
+
+.writeup h2 {
+    margin-top: 35px;
+    color: #4CAF50;
+}
+
+.writeup pre {
+    background: #0a0a0a;
+    padding: 15px;
+    overflow-x: auto;
+    border-radius: 4px;
+}
+
+.writeup code {
+    font-family: 'Courier New', monospace;
+}
+
+.writeup a {
+    color: #4CAF50;
+}
