@@ -170,3 +170,24 @@ footer {
 .writeup a {
     color: #4CAF50;
 }
+.writeup-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 25px auto;
+    border-radius: 5px;
+    border: 1px solid #333;
+}
+
+.writeup ul {
+    margin: 20px 0;
+    padding-left: 25px;
+}
+
+.writeup li {
+    margin-bottom: 8px;
+}
+
+.writeup p {
+    margin-bottom: 15px;
+}
