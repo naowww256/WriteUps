@@ -1,1 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CAP | HackTheBox | naow</title>
+
+    <link rel="stylesheet" href="../../styles/main.css">
+</head>
+
+<body>
+
+<header>
+
+    <h1>naow</h1>
+
+    <p>Pentester & Red Team</p>
+
+    <nav>
+        <a href="../../index.html">Inicio</a>
+        <a href="../../maquinas.html">Máquinas</a>
+        <a href="../../about.html">Sobre Mí</a>
+    </nav>
+
+</header>
+
+
+<main>
+
+    <article class="writeup">
+
+        <a href="../../maquinas.html">← Volver a Máquinas</a>
+
+        <h1>CAP</h1>
+
+        <p class="date">
+            HackTheBox | 11 ago 2026 | Dificultad: Media
+        </p>
+
+
+        <!-- INTRODUCCIÓN -->
+
+        <h2>Introducción</h2>
+
+        <p>
+            CAP es una máquina Linux de dificultad media de HackTheBox.
+            Durante la resolución comenzaremos realizando un reconocimiento
+            de los servicios expuestos, para posteriormente identificar una
+            funcionalidad vulnerable en el Security Dashboard que nos permitirá
+            obtener una captura de tráfico.
+        </p>
+
+        <p>
+            Analizando dicha captura mediante Wireshark conseguiremos obtener
+            unas credenciales válidas que nos permitirán acceder mediante SSH.
+            Finalmente, mediante la enumeración de Capabilities encontraremos
+            una configuración vulnerable en Python 3.8 que nos permitirá
+            obtener una shell como ROOT.
+        </p>
+
+
+        <!-- RECONOCIMIENTO -->
+
+        <h2>1. Reconocimiento</h2>
+
+        <p>
+            Comenzamos realizando un escaneo de puertos para identificar
+            los servicios expuestos en la máquina.
+        </p>
+
+        <pre><code>nmap -Pn -p1-5000 --min-rate 5000 -vvv -oG allports 10.129.95.147</code></pre>
+
+        <p>
+            El escaneo nos permite identificar los siguientes puertos abiertos:
+        </p>
+
+        <ul>
+            <li><strong>21/tcp</strong> → FTP</li>
+            <li><strong>22/tcp</strong> → SSH</li>
+            <li><strong>80/tcp</strong> → HTTP</li>
+        </ul>
+
+        <img
+            src="../../assets/images/cap/01-nmapreco.png"
+            alt="Escaneo inicial de Nmap"
+            class="writeup-image"
+        >
+
+
+        <!-- ENUMERACIÓN -->
+
+        <h2>2. Enumeración de servicios</h2>
+
+        <p>
+            Una vez identificados los puertos abiertos, realizamos un segundo
+            escaneo más específico utilizando scripts de enumeración y
+            detección de versiones.
+        </p>
+
+        <pre><code>nmap -p21,22,80 -sCV 10.129.95.147 -oG targeted</code></pre>
+
+        <p>
+            En esta ocasión obtenemos información más detallada sobre los
+            servicios que se están ejecutando:
+        </p>
+
+        <ul>
+            <li><strong>21/tcp</strong> → vsftpd 3.0.3</li>
+            <li><strong>22/tcp</strong> → OpenSSH 8.2p1 Ubuntu</li>
+            <li><strong>80/tcp</strong> → HTTP / Gunicorn</li>
+        </ul>
+
+        <p>
+            Además, Nmap identifica el título de la aplicación web como
+            <strong>Security Dashboard</strong>.
+        </p>
+
+        <img
+            src="../../assets/images/cap/02-nmapvuln.png"
+            alt="Enumeración de servicios con Nmap"
+            class="writeup-image"
+        >
+
+
+        <!-- WEB -->
+
+        <h2>3. Security Dashboard</h2>
+
+        <p>
+            Accedemos al servicio web mediante el puerto 80.
+            Al entrar en la aplicación observamos un Security Dashboard
+            en el que aparecemos autenticados como el usuario
+            <strong>Nathan</strong>.
+        </p>
+
+        <p>
+            En la parte superior de la aplicación podemos observar que
+            la URL contiene el recurso:
+        </p>
+
+        <pre><code>/data/1</code></pre>
+
+        <p>
+            Esto resulta interesante, ya que parece que la aplicación está
+            utilizando un identificador numérico para acceder a diferentes
+            capturas de datos.
+        </p>
+
+        <img
+            src="../../assets/images/cap/04-login.png"
+            alt="Security Dashboard autenticado como Nathan"
+            class="writeup-image"
+        >
+
+        <p>
+            Probamos a modificar manualmente el identificador de
+            <strong>1</strong> a <strong>0</strong>:
+        </p>
+
+        <pre><code>/data/0</code></pre>
+
+        <p>
+            Al realizar este cambio conseguimos acceder a otro recurso
+            que contiene información sobre una captura de tráfico.
+        </p>
+
+        <img
+            src="../../assets/images/cap/05-login0.png"
+            alt="Acceso al recurso data/0"
+            class="writeup-image"
+        >
+
+        <p>
+            La aplicación nos permite descargar esta captura, por lo que
+            procedemos a analizarla con Wireshark.
+        </p>
+
+
+        <!-- PCAP -->
+
+        <h2>4. Análisis del tráfico con Wireshark</h2>
+
+        <p>
+            Una vez descargado el archivo PCAP, lo abrimos con Wireshark
+            para analizar las comunicaciones capturadas.
+        </p>
+
+        <p>
+            Durante el análisis observamos tráfico correspondiente al
+            protocolo FTP.
+        </p>
+
+        <img
+            src="../../assets/images/cap/06-paquetes.png"
+            alt="Análisis del tráfico capturado en Wireshark"
+            class="writeup-image"
+        >
+
+        <p>
+            FTP transmite las credenciales sin cifrar, por lo que podemos
+            inspeccionar directamente los paquetes correspondientes a la
+            autenticación.
+        </p>
+
+        <p>
+            Filtrando el tráfico FTP encontramos una petición
+            <strong>USER</strong> correspondiente al usuario
+            <strong>nathan</strong> y posteriormente una petición
+            <strong>PASS</strong>.
+        </p>
+
+        <img
+            src="../../assets/images/cap/07-ftppass.png"
+            alt="Credenciales FTP encontradas en Wireshark"
+            class="writeup-image"
+        >
+
+        <p>
+            Con esto conseguimos unas credenciales válidas para el usuario
+            <strong>nathan</strong>.
+        </p>
+
+
+        <!-- SSH -->
+
+        <h2>5. Acceso mediante SSH</h2>
+
+        <p>
+            Como el puerto 22 está expuesto y disponemos de unas credenciales
+            válidas, probamos a utilizarlas para acceder mediante SSH.
+        </p>
+
+        <pre><code>ssh nathan@10.129.95.147</code></pre>
+
+        <p>
+            El acceso es correcto y conseguimos una shell como el usuario
+            <strong>nathan</strong>.
+        </p>
+
+        <img
+            src="../../assets/images/cap/08-ssh.png"
+            alt="Acceso SSH como Nathan"
+            class="writeup-image"
+        >
+
+        <p>
+            Una vez dentro del sistema podemos acceder a la flag de usuario.
+        </p>
+
+
+        <!-- PRIVILEGE ESCALATION -->
+
+        <h2>6. Enumeración de Capabilities</h2>
+
+        <p>
+            Con el acceso como usuario <strong>nathan</strong>, comenzamos
+            a realizar la enumeración local del sistema buscando posibles
+            vías para elevar privilegios.
+        </p>
+
+        <p>
+            Una de las comprobaciones que realizamos consiste en buscar
+            binarios con Linux Capabilities:
+        </p>
+
+        <pre><code>getcap -r / 2>/dev/null</code></pre>
+
+        <p>
+            Entre los resultados encontramos una entrada especialmente
+            interesante:
+        </p>
+
+        <pre><code>/usr/bin/python3.8 = cap_setuid,cap_net_bind_service+eip</code></pre>
+
+        <p>
+            Python 3.8 dispone de la capability
+            <strong>cap_setuid</strong>, lo que permite modificar el
+            UID efectivo del proceso.
+        </p>
+
+        <img
+            src="../../assets/images/cap/09-vulncap.png"
+            alt="Python 3.8 con cap_setuid"
+            class="writeup-image"
+        >
+
+
+        <!-- ROOT -->
+
+        <h2>7. Escalada a ROOT</h2>
+
+        <p>
+            Aprovechando la capability <strong>cap_setuid</strong> de
+            Python 3.8 podemos ejecutar código que cambie el UID del
+            proceso a <strong>0</strong> y posteriormente obtener una
+            shell.
+        </p>
+
+        <pre><code>/usr/bin/python3.8 -c 'import os; os.setuid(0); os.execl("/bin/sh", "sh")'</code></pre>
+
+        <p>
+            Al ejecutar el comando obtenemos una shell y comprobamos
+            nuestra identidad mediante:
+        </p>
+
+        <pre><code>id</code></pre>
+
+        <p>
+            El resultado confirma que somos <strong>root</strong>:
+        </p>
+
+        <pre><code>uid=0(root) gid=1001(nathan) groups=1001(nathan)</code></pre>
+
+        <img
+            src="../../assets/images/cap/10-rootobtenido.png"
+            alt="Shell ROOT obtenida mediante Python"
+            class="writeup-image"
+        >
+
+
+        <!-- CONCLUSIÓN -->
+
+        <h2>8. Conclusión</h2>
+
+        <p>
+            La máquina CAP comienza con una enumeración de los servicios
+            expuestos, donde encontramos FTP, SSH y un servicio web.
+        </p>
+
+        <p>
+            La aplicación web nos permite acceder a diferentes capturas
+            mediante identificadores numéricos. Modificando el identificador
+            conseguimos acceder a una captura de tráfico que posteriormente
+            analizamos con Wireshark.
+        </p>
+
+        <p>
+            El análisis del tráfico FTP nos permite recuperar las credenciales
+            del usuario <strong>nathan</strong>, que reutilizamos para acceder
+            mediante SSH.
+        </p>
+
+        <p>
+            Finalmente, la enumeración de Linux Capabilities revela que
+            <strong>Python 3.8</strong> dispone de la capability
+            <strong>cap_setuid</strong>. Aprovechando esta configuración
+            conseguimos cambiar nuestro UID a 0 y obtener una shell como
+            <strong>ROOT</strong>.
+        </p>
+
+        <p>
+            <strong>CAP completada.</strong>
+        </p>
+
+
+    </article>
+
+</main>
+
+
+<footer>
+    <p>© 2026 naow</p>
+</footer>
+
+
+</body>
+</html>
