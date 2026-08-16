@@ -1,93 +1,205 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blue | naow</title>
+
+    <title>BLUE | HackTheBox | naow</title>
+
     <link rel="stylesheet" href="../styles/main.css">
+
     <style>
+        .writeup {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup h1 {
+            margin-top: 0;
+        }
+
+        .writeup h2 {
+            margin-top: 35px;
+            color: #4CAF50;
+        }
+
+        .writeup p {
+            margin-bottom: 15px;
+        }
+
+        .writeup ul {
+            margin: 20px 0;
+            padding-left: 25px;
+        }
+
+        .writeup li {
+            margin-bottom: 8px;
+        }
+
+        .writeup pre {
+            background: #0a0a0a;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .writeup code {
+            font-family: 'Courier New', monospace;
+        }
+
         .writeup-image {
             display: block;
             max-width: 100%;
             height: auto;
-            margin: 20px auto 35px auto;
-            border: 1px solid #333;
+            margin: 25px auto;
             border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        .writeup a {
+            color: #4CAF50;
+        }
+
+        .warning {
+            border-left: 3px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 20px 0;
+            background: #111;
         }
     </style>
+
 </head>
+
 <body>
 
-    <header>
-        <h1>naow</h1>
-        <p>Pentester &amp; Red Team</p>
-        <nav>
-            <a href="../index.html">Inicio</a>
-            <a href="../maquinas.html">Maquinas</a>
-            <a href="../about.html">Sobre Mí</a>
-        </nav>
-    </header>
+<header>
 
-    <main>
-        <h1>Blue</h1>
-        <p class="date">HackTheBox | 16 ago 2026 | Dificultad: Fácil</p>
+    <h1>naow</h1>
+
+    <p>Pentester & Red Team</p>
+
+    <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="../maquinas.html">Máquinas</a>
+        <a href="../about.html">Sobre Mí</a>
+    </nav>
+
+</header>
+
+
+<main>
+
+    <article class="writeup">
+
+        <p>
+            <a href="../maquinas.html">← Volver a Máquinas</a>
+        </p>
+
+
+        <h1>BLUE</h1>
+
+        <p class="date">
+            HackTheBox | Dificultad: Fácil
+        </p>
+
+
+        <!-- INTRODUCCIÓN -->
 
         <h2>Introducción</h2>
 
         <p>
-            Blue es una máquina Windows de HackTheBox en la que comenzamos
-            realizando un reconocimiento de los servicios expuestos.
-            Tras identificar SMB, comprobamos la vulnerabilidad MS17-010
-            y utilizamos EternalBlue para conseguir acceso a la máquina.
+            BLUE es una máquina Windows de HackTheBox de dificultad fácil.
+            Comenzaremos realizando un reconocimiento de los servicios
+            expuestos para identificar posibles vectores de entrada.
         </p>
+
+        <p>
+            Durante la enumeración encontramos los puertos 135, 139 y 445,
+            relacionados con RPC y SMB. El sistema identificado es Windows 7
+            Professional 7601 Service Pack 1.
+        </p>
+
+        <p>
+            Debido a la presencia de SMB, comprobamos si el objetivo es
+            vulnerable a MS17-010 (EternalBlue).
+        </p>
+
+
+        <!-- 1 RECONOCIMIENTO -->
 
         <h2>1. Reconocimiento</h2>
 
         <p>
             Comenzamos realizando un escaneo completo de puertos para
-            identificar los servicios expuestos en la máquina.
+            identificar todos los servicios expuestos en la máquina.
         </p>
 
         <pre><code>nmap -sS --min-rate 5000 -vvv -n -Pn 10.129.57.0 -oG allports</code></pre>
 
         <p>
-            El escaneo nos permite identificar los siguientes puertos abiertos:
+            El escaneo nos permite identificar los siguientes puertos
+            abiertos:
         </p>
 
         <ul>
             <li><strong>135/tcp</strong> → MSRPC</li>
-            <li><strong>139/tcp</strong> → NetBIOS-SSN</li>
+            <li><strong>139/tcp</strong> → NetBIOS / SMB</li>
             <li><strong>445/tcp</strong> → Microsoft-DS / SMB</li>
         </ul>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/01-nmapreconocimiento.png"
-             alt="Escaneo inicial de Nmap">
+        <img
+            src="../assets/images/blue/01-nmapreconocimiento.png"
+            alt="Escaneo inicial de Nmap"
+            class="writeup-image"
+        >
 
-        <h2>2. Enumeración de servicios y vulnerabilidades</h2>
+
+        <!-- 2 ENUMERACIÓN -->
+
+        <h2>2. Enumeración de servicios</h2>
 
         <p>
-            Una vez identificados los puertos abiertos, realizamos un segundo
-            escaneo utilizando scripts de enumeración y detección de versiones.
+            Una vez identificados los puertos abiertos, realizamos un
+            segundo escaneo utilizando scripts de enumeración y detección
+            de versiones.
         </p>
 
         <pre><code>nmap -p135,139,445 -sCV 10.129.57.0 -oN targeted</code></pre>
 
         <p>
-            Nmap identifica el sistema como Windows 7 Professional 7601
-            Service Pack 1. También obtenemos información relacionada con
-            SMB, por lo que podemos comprobar si el objetivo es vulnerable
-            a MS17-010.
+            En esta ocasión obtenemos información más detallada sobre
+            los servicios y el sistema operativo.
         </p>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/02-nmapscvvulnerabilidades.png"
-             alt="Enumeración de servicios con Nmap">
+        <ul>
+            <li><strong>135/tcp</strong> → MSRPC</li>
+            <li><strong>139/tcp</strong> → Microsoft NetBIOS</li>
+            <li><strong>445/tcp</strong> → Microsoft-DS / SMB</li>
+            <li><strong>OS</strong> → Windows 7 Professional 7601 Service Pack 1</li>
+        </ul>
+
+        <img
+            src="../assets/images/blue/02-nmapscvvulnerabilidades.png"
+            alt="Enumeración de servicios con Nmap"
+            class="writeup-image"
+        >
+
+
+        <!-- 3 ETERNALBLUE -->
 
         <h2>3. Comprobación de EternalBlue</h2>
 
         <p>
-            Con la información obtenida, buscamos en Metasploit módulos
+            Debido a la versión de Windows y al servicio SMB expuesto,
+            comprobamos si el objetivo es vulnerable a MS17-010.
+        </p>
+
+        <p>
+            Para ello utilizamos Metasploit y buscamos los módulos
             relacionados con EternalBlue.
         </p>
 
@@ -99,73 +211,127 @@
 
         <pre><code>exploit/windows/smb/ms17_010_eternalblue</code></pre>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/03-msfconsoleprobandoeternal.png"
-             alt="Búsqueda de EternalBlue en Metasploit">
+        <img
+            src="../assets/images/blue/03-msfconsoleprobandoeternal.png"
+            alt="Búsqueda y comprobación de EternalBlue en Metasploit"
+            class="writeup-image"
+        >
+
+
+        <!-- 4 EXPLOTACIÓN -->
 
         <h2>4. Explotación</h2>
 
         <p>
-            Una vez seleccionado el exploit, lo ejecutamos contra la máquina.
-            La explotación se completa correctamente y obtenemos una sesión
-            de Meterpreter.
+            Una vez comprobado que el objetivo es vulnerable, ejecutamos
+            el módulo de EternalBlue contra la máquina.
         </p>
 
         <pre><code>msf exploit(windows/smb/ms17_010_eternalblue) &gt; run</code></pre>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/04-eternalfuncionandoydandomeunashell.png"
-             alt="EternalBlue funcionando y obteniendo una shell">
+        <p>
+            La explotación se completa correctamente y conseguimos abrir
+            una sesión de Meterpreter contra el objetivo.
+        </p>
+
+        <img
+            src="../assets/images/blue/04-eternalfuncionandoydandomeunashell.png"
+            alt="EternalBlue funcionando y obteniendo una shell"
+            class="writeup-image"
+        >
+
+
+        <!-- 5 SYSTEM -->
 
         <h2>5. Comprobación de privilegios</h2>
 
         <p>
-            Una vez obtenida la shell, comprobamos los privilegios con los
-            que estamos ejecutando la sesión.
+            Una vez obtenida la shell, comprobamos el usuario con el que
+            estamos ejecutando la sesión.
         </p>
 
         <pre><code>C:\&gt;whoami</code></pre>
 
         <p>
-            El resultado es:
+            El resultado obtenido es:
         </p>
 
         <pre><code>nt authority\system</code></pre>
 
         <p>
-            Por lo tanto, hemos conseguido acceso con privilegios de SYSTEM.
+            Por lo tanto, el acceso obtenido dispone directamente de
+            privilegios SYSTEM.
         </p>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/05-conseguimostnsystem.png"
-             alt="Acceso con privilegios SYSTEM">
+        <img
+            src="../assets/images/blue/05-conseguimostnsystem.png"
+            alt="Acceso con privilegios SYSTEM"
+            class="writeup-image"
+        >
+
+
+        <!-- 6 HASHDUMP -->
 
         <h2>6. Hashdump</h2>
 
         <p>
-            Al disponer de privilegios SYSTEM, podemos realizar un hashdump
-            de las cuentas locales de la máquina.
+            Al disponer de privilegios SYSTEM, podemos realizar un
+            hashdump de las cuentas locales de la máquina.
         </p>
 
         <pre><code>meterpreter &gt; hashdump</code></pre>
 
-        <img class="writeup-image"
-             src="../assets/images/blue/06-aquitenemoselhashdumpdelascontraseñasparamasinformacionaunqueyasomossystem.png"
-             alt="Hashdump de las contraseñas">
+        <p>
+            El resultado muestra los hashes correspondientes a las
+            cuentas locales del sistema.
+        </p>
+
+        <img
+            src="../assets/images/blue/06-aquitenemoselhashdumpdelascontraseñasparamasinformacionaunqueyasomossystem.png"
+            alt="Hashdump de las contraseñas"
+            class="writeup-image"
+        >
+
+
+        <!-- CONCLUSIÓN -->
 
         <h2>Conclusión</h2>
 
         <p>
-            Tras realizar el reconocimiento inicial, identificamos SMB como
-            el servicio de interés y comprobamos la vulnerabilidad MS17-010.
-            Mediante EternalBlue conseguimos una sesión de Meterpreter con
-            privilegios de SYSTEM.
+            Tras realizar el reconocimiento inicial, identificamos SMB
+            como el servicio de interés y comprobamos la vulnerabilidad
+            MS17-010.
         </p>
-    </main>
 
-    <footer>
-        <p>© 2026 naow</p>
-    </footer>
+        <p>
+            Mediante EternalBlue conseguimos una sesión de Meterpreter
+            con privilegios de SYSTEM.
+        </p>
+
+        <p>
+            Finalmente realizamos un hashdump, confirmando que disponemos
+            de privilegios suficientes para acceder a las credenciales
+            almacenadas en el sistema.
+        </p>
+
+        <p>
+            <strong>BLUE completada.</strong>
+        </p>
+
+    </article>
+
+</main>
+
+
+<footer>
+
+    <p>© 2026 naow</p>
+
+</footer>
+
+
+</body>
+</html>
 
 </body>
 </html>
