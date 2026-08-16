@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blue - WriteUp</title>
+</head>
+<body>
+<h1>naow</h1>
+<p>Pentester &amp; Red Team</p>
+
+<nav>
+<a href="../index.html">Inicio</a>
+<a href="../maquinas.html">Máquinas</a>
+<a href="../about.html">Sobre Mí</a>
+</nav>
+
+<p><a href="../maquinas.html">← Volver a Máquinas</a></p>
+
+<h1>Blue</h1>
+<p>HackTheBox | Dificultad: Fácil</p>
+
+<h2>Introducción</h2>
+<p>
+En esta máquina comenzamos realizando un reconocimiento de los puertos
+expuestos. Posteriormente identificamos los servicios SMB y comprobamos
+la vulnerabilidad MS17-010 (EternalBlue). Finalmente, explotamos la
+vulnerabilidad mediante Metasploit y obtenemos una sesión con privilegios
+de SYSTEM.
+</p>
+
+<h2>1. Reconocimiento</h2>
+<p>
+Comenzamos realizando un escaneo completo de puertos para identificar
+los servicios expuestos en la máquina.
+</p>
+<pre>nmap -sS --min-rate 5000 -vvv -n -Pn 10.129.57.0 -oG allports</pre>
+
+<p>En el escaneo encontramos los siguientes puertos abiertos:</p>
+<ul>
+<li><strong>135/tcp</strong> → MSRPC</li>
+<li><strong>139/tcp</strong> → NetBIOS-SSN</li>
+<li><strong>445/tcp</strong> → Microsoft-DS / SMB</li>
+</ul>
+
+<img src="../assets/images/blue/01-nmapreconocimiento.png"
+alt="Reconocimiento inicial con Nmap" style="max-width:100%;height:auto;">
+
+<h2>2. Enumeración de servicios y vulnerabilidades</h2>
+<p>
+Una vez identificados los puertos abiertos, realizamos una enumeración
+más específica sobre los servicios detectados.
+</p>
+<pre>nmap -p135,139,445 -sCV 10.129.57.0 -oN targeted</pre>
+
+<p>
+El objetivo ejecuta Windows 7 Professional 7601 Service Pack 1.
+Además, SMB presenta una configuración que permite comprobar la
+vulnerabilidad MS17-010.
+</p>
+
+<img src="../assets/images/blue/02-nmapscvvulnerabilidades.png"
+alt="Enumeración de servicios y vulnerabilidades con Nmap"
+style="max-width:100%;height:auto;">
+
+<h2>3. Comprobación de EternalBlue</h2>
+<p>
+Con la información obtenida, buscamos en Metasploit un módulo relacionado
+con EternalBlue/MS17-010.
+</p>
+<p>
+Entre los resultados aparece el módulo
+<strong>exploit/windows/smb/ms17_010_eternalblue</strong>.
+</p>
+
+<img src="../assets/images/blue/03-msfconsoleprobandoeternal.png"
+alt="Búsqueda del exploit EternalBlue en Metasploit"
+style="max-width:100%;height:auto;">
+
+<h2>4. Explotación</h2>
+<p>
+Utilizamos el módulo de EternalBlue contra la máquina objetivo.
+La explotación se completa correctamente y se obtiene una sesión
+de Meterpreter.
+</p>
+<pre>msf exploit(windows/smb/ms17_010_eternalblue) &gt; run</pre>
+
+<img src="../assets/images/blue/04-eternalfuncionandoydandomeunashell.png"
+alt="EternalBlue funcionando y obteniendo una shell"
+style="max-width:100%;height:auto;">
+
+<h2>5. Comprobación de privilegios</h2>
+<p>
+Una vez obtenida la shell, comprobamos el usuario con el que se está
+ejecutando la sesión.
+</p>
+<pre>C:\&gt; whoami</pre>
+
+<p>La respuesta es:</p>
+<pre>nt authority\system</pre>
+
+<p>
+Por tanto, hemos conseguido acceso con privilegios de SYSTEM.
+</p>
+
+<img src="../assets/images/blue/05-conseguimostnsystem.png"
+alt="Shell con privilegios SYSTEM"
+style="max-width:100%;height:auto;">
+
+<h2>6. Hashdump</h2>
+<p>
+Con los privilegios obtenidos también podemos realizar un hashdump
+de las cuentas locales de la máquina.
+</p>
+
+<img src="../assets/images/blue/06-aquitenemoselhashdumpdelascontraseñasparamasinformacionaunqueyasomossystem.png"
+alt="Hashdump de las cuentas locales"
+style="max-width:100%;height:auto;">
+
+<h2>Conclusión</h2>
+<p>
+La máquina Blue presenta una vulnerabilidad en SMB asociada a MS17-010.
+Tras identificarla mediante la enumeración, conseguimos explotarla con
+EternalBlue y obtener una sesión con privilegios de SYSTEM.
+</p>
+</body>
+</html>
