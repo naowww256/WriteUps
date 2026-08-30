@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DarkHole - Writeup | naow</title>
+
+    <link rel="stylesheet" href="../styles/main.css">
+
+    <style>
+        .writeup-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .machine-header {
+            margin-bottom: 50px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #333;
+        }
+
+        .machine-header h1 {
+            margin-bottom: 10px;
+        }
+
+        .machine-info {
+            color: #aaa;
+            font-size: 1rem;
+        }
+
+        .machine-info span {
+            margin-right: 20px;
+        }
+
+        .writeup-section {
+            margin-bottom: 55px;
+        }
+
+        .writeup-section h2 {
+            margin-bottom: 20px;
+            color: #fff;
+            border-left: 4px solid #7cff00;
+            padding-left: 12px;
+        }
+
+        .writeup-section h3 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #ddd;
+        }
+
+        .writeup-section p {
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .terminal {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 18px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .terminal code {
+            color: #7cff00;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .writeup-image {
+            width: 100%;
+            display: block;
+            margin: 25px auto 35px auto;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .flag {
+            background: #151515;
+            border-left: 4px solid #7cff00;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>naow</h1>
+    <p>Pentester & Red Team</p>
+
+    <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="../maquinas.html">Máquinas</a>
+        <a href="../about.html">Sobre Mí</a>
+        <a href="../ewpt.html">Preparación eWPT</a>
+    </nav>
+</header>
+
+<main class="writeup-container">
+
+    <a href="../maquinas.html" class="back-button">← Volver a máquinas</a>
+
+    <!-- CABECERA -->
+
+    <section class="machine-header">
+
+        <h1>DarkHole</h1>
+
+        <div class="machine-info">
+            <span>Plataforma: VulnHub</span>
+            <span>Dificultad: Fácil</span>
+            <span>Sistema: Linux</span>
+        </div>
+
+        <p>
+            En este Writeup resolveremos la máquina DarkHole. Durante la explotación
+            encontraremos un repositorio Git expuesto, credenciales en commits anteriores,
+            una vulnerabilidad SQL Injection que nos permitirá obtener nuevas credenciales
+            y finalmente escalaremos privilegios hasta root mediante permisos sudo sobre Python.
+        </p>
+
+    </section>
+
+
+    <!-- RECONOCIMIENTO -->
+
+    <section class="writeup-section">
+
+        <h2>Reconocimiento</h2>
+
+        <p>
+            Comenzamos realizando un descubrimiento de hosts dentro de nuestra red
+            para identificar la dirección IP correspondiente a la máquina objetivo.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/1º.nmapsn.png"
+            alt="Descubrimiento de hosts con Nmap"
+            class="writeup-image"
+        >
+
+        <p>
+            Una vez identificada la máquina objetivo, realizamos un escaneo completo
+            de puertos TCP.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/2º.nmapdescubrirpuertos.png"
+            alt="Escaneo completo de puertos"
+            class="writeup-image"
+        >
+
+        <p>
+            Encontramos dos puertos principales abiertos: SSH en el puerto 22
+            y HTTP en el puerto 80.
+        </p>
+
+        <p>
+            A continuación realizamos un escaneo más detallado para identificar
+            versiones y posibles directorios o recursos interesantes.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/3º.nmapsCV.png"
+            alt="Escaneo de versiones y servicios"
+            class="writeup-image"
+        >
+
+        <p>
+            El resultado nos muestra algo especialmente interesante en el servicio web:
+            parece existir un repositorio <strong>.git</strong> accesible desde la aplicación.
+        </p>
+
+    </section>
+
+
+    <!-- GIT EXPUESTO -->
+
+    <section class="writeup-section">
+
+        <h2>Repositorio Git expuesto</h2>
+
+        <p>
+            Accedemos al directorio <strong>.git</strong> y comprobamos que el repositorio
+            se encuentra expuesto públicamente.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/4º.encontramos.git.png"
+            alt="Repositorio Git encontrado"
+            class="writeup-image"
+        >
+
+        <p>
+            También podemos acceder a la página principal de login de la aplicación.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/4ºpuerto80loginnormal.jpg"
+            alt="Página de login de DarkHole"
+            class="writeup-image"
+        >
+
+        <p>
+            Procedemos a descargar el contenido del repositorio Git para poder
+            analizar los archivos y el historial de commits.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/5º.gitdescomprimido.png"
+            alt="Repositorio Git descargado"
+            class="writeup-image"
+        >
+
+        <p>
+            Al revisar el código actual observamos que el login utiliza medidas
+            de sanitización sobre los parámetros introducidos.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/6ºloginsanitizado.png"
+            alt="Código del login sanitizado"
+            class="writeup-image"
+        >
+
+        <p>
+            Sin embargo, al revisar el historial del repositorio encontramos
+            información interesante en commits anteriores.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/7ºencontramosengitelloginconloscomandos.png"
+            alt="Credenciales encontradas en Git"
+            class="writeup-image"
+        >
+
+        <p>
+            Las credenciales encontradas nos permiten autenticarnos correctamente
+            en la aplicación web.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/8ºconseguimosaccederalusuaroyestamosdentro.png"
+            alt="Acceso conseguido a la aplicación"
+            class="writeup-image"
+        >
+
+    </section>
+
+
+    <!-- SQL INJECTION -->
+
+    <section class="writeup-section">
+
+        <h2>SQL Injection</h2>
+
+        <p>
+            Una vez dentro de la aplicación observamos que el parámetro
+            <strong>id</strong> es potencialmente vulnerable a SQL Injection.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/9ºsqlinjectionenelparametroID.png"
+            alt="SQL Injection en parámetro ID"
+            class="writeup-image"
+        >
+
+        <p>
+            Enumeramos las bases de datos disponibles y encontramos una base
+            de datos perteneciente a la aplicación llamada <strong>darkhole_2</strong>.
+        </p>
+
+        <p>
+            Dentro de esta base de datos encontramos dos tablas de interés:
+            <strong>ssh</strong> y <strong>users</strong>.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/10ºenconttramos2tablassshyusser.png"
+            alt="Tablas encontradas en la base de datos"
+            class="writeup-image"
+        >
+
+        <p>
+            Continuamos enumerando la tabla <strong>ssh</strong> para conocer
+            las columnas disponibles.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/11ºencontramoslascolumnas.png"
+            alt="Columnas de la tabla SSH"
+            class="writeup-image"
+        >
+
+        <p>
+            Finalmente obtenemos unas credenciales almacenadas en la base de datos.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/12ºcredencialesencontradas.png"
+            alt="Credenciales encontradas"
+            class="writeup-image"
+        >
+
+    </section>
+
+
+    <!-- ACCESO SSH -->
+
+    <section class="writeup-section">
+
+        <h2>Acceso inicial por SSH</h2>
+
+        <p>
+            Probamos las credenciales obtenidas contra el servicio SSH y conseguimos
+            acceder correctamente al sistema como el usuario <strong>losy</strong>.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/13ºcredencialesfuncionandoaccesoconelssh.png"
+            alt="Acceso SSH como losy"
+            class="writeup-image"
+        >
+
+    </section>
+
+
+    <!-- ENUMERACION -->
+
+    <section class="writeup-section">
+
+        <h2>Enumeración del sistema</h2>
+
+        <p>
+            Una vez dentro comenzamos la enumeración del sistema buscando archivos,
+            configuraciones o comandos que puedan ayudarnos a escalar privilegios.
+        </p>
+
+        <p>
+            Revisando el historial de comandos de Bash encontramos información
+            interesante relacionada con el sistema.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/14ºencontramosdentrodelbash_historycosasparasubirdeusuario.png"
+            alt="Información encontrada en bash history"
+            class="writeup-image"
+        >
+
+        <p>
+            A través de la vulnerabilidad RCE encontramos más información dentro
+            del historial de comandos de otro usuario.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/15ºatravesdelRCEencontramosdentrodelotrobashhistoryulacontraseña.png"
+            alt="Información encontrada mediante RCE"
+            class="writeup-image"
+        >
+
+        <p>
+            Entre la información encontrada obtenemos una contraseña.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/16ºaquilacontraseña.png"
+            alt="Contraseña encontrada"
+            class="writeup-image"
+        >
+
+    </section>
+
+
+    <!-- USER FLAG -->
+
+    <section class="writeup-section">
+
+        <h2>Flag de usuario</h2>
+
+        <p>
+            Con el acceso conseguido podemos localizar y leer la primera flag
+            correspondiente al usuario.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/17ºprimeraflagencontrada.png"
+            alt="User flag encontrada"
+            class="writeup-image"
+        >
+
+    </section>
+
+
+    <!-- ESCALADA DE PRIVILEGIOS -->
+
+    <section class="writeup-section">
+
+        <h2>Escalada de privilegios</h2>
+
+        <p>
+            Para continuar con la escalada de privilegios revisamos los permisos
+            sudo disponibles para el usuario actual.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/18ºpermisosensudo-lparapython3.png"
+            alt="Permisos sudo para Python3"
+            class="writeup-image"
+        >
+
+        <p>
+            Observamos que el usuario puede ejecutar Python como root mediante sudo.
+            Aprovechando este permiso conseguimos elevar nuestros privilegios y
+            obtener una shell como root.
+        </p>
+
+        <img
+            src="../assets/images/darkhole2/19ºaccesorootconseguidograciasaunSUDO-l.png"
+            alt="Acceso root conseguido"
+            class="writeup-image"
+        >
+
+        <div class="flag">
+            <strong>Root conseguido ✓</strong>
+        </div>
+
+    </section>
+
+
+    <!-- CONCLUSION -->
+
+    <section class="writeup-section">
+
+        <h2>Conclusión</h2>
+
+        <p>
+            DarkHole presenta una cadena de explotación interesante que combina
+            diferentes técnicas. Comenzamos con reconocimiento de servicios y
+            descubrimos un repositorio Git expuesto.
+        </p>
+
+        <p>
+            El análisis del historial del repositorio nos permite encontrar
+            credenciales para acceder a la aplicación. Posteriormente identificamos
+            una vulnerabilidad SQL Injection que nos proporciona nuevas credenciales
+            para acceder mediante SSH.
+        </p>
+
+        <p>
+            Finalmente, mediante la enumeración del sistema encontramos información
+            sensible y conseguimos escalar privilegios hasta root gracias a permisos
+            sudo inseguros sobre Python.
+        </p>
+
+    </section>
+
+</main>
+
+
+<footer>
+    <p>
+        © 2026 naow |
+        <a href="mailto:naowcs@gmail.com">Contacto</a>
+    </p>
+</footer>
+
+</body>
+</html>
