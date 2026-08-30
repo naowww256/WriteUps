@@ -91,6 +91,40 @@
             display: inline-block;
             margin-bottom: 30px;
         }
+        .report-box {
+            background: #151515;
+            border: 1px solid #333;
+            border-left: 4px solid #7cff00;
+            border-radius: 5px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .report-box h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .report-box p {
+            margin-bottom: 18px;
+            color: #ccc;
+        }
+
+        .report-button {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #7cff00;
+            color: #111;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .report-button:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 
@@ -116,22 +150,40 @@
 
     <section class="machine-header">
 
-        <h1>DarkHole</h1>
+    <h1>DarkHole</h1>
 
-        <div class="machine-info">
-            <span>Plataforma: VulnHub</span>
-            <span>Dificultad: Fácil</span>
-            <span>Sistema: Linux</span>
-        </div>
+    <div class="machine-info">
+        <span>Plataforma: VulnHub</span>
+        <span>Dificultad: Fácil</span>
+        <span>Sistema: Linux</span>
+    </div>
+
+    <p>
+        En este Writeup resolveremos la máquina DarkHole. Durante la explotación
+        encontraremos un repositorio Git expuesto, credenciales en commits anteriores,
+        una vulnerabilidad SQL Injection que nos permitirá obtener nuevas credenciales
+        y finalmente escalaremos privilegios hasta root mediante permisos sudo sobre Python.
+    </p>
+
+    <div class="report-box">
+
+        <h3>📄 Informe de Pentesting</h3>
 
         <p>
-            En este Writeup resolveremos la máquina DarkHole. Durante la explotación
-            encontraremos un repositorio Git expuesto, credenciales en commits anteriores,
-            una vulnerabilidad SQL Injection que nos permitirá obtener nuevas credenciales
-            y finalmente escalaremos privilegios hasta root mediante permisos sudo sobre Python.
+            Este Writeup está acompañado de un informe completo de la prueba de penetración,
+            donde se documentan la metodología utilizada, los hallazgos identificados,
+            su nivel de riesgo y las recomendaciones propuestas.
         </p>
 
-    </section>
+        <a href="../Reports/Informe%20FINAL%20darkhole2.pdf"
+           target="_blank"
+           class="report-button">
+            Ver informe completo (PDF)
+        </a>
+
+    </div>
+
+</section>
 
 
     <!-- RECONOCIMIENTO -->
